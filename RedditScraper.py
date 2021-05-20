@@ -6,7 +6,8 @@ import re
 import sys
 import pprint  
 import yaml  
-import io  
+import io
+import os  
 from os import path 
 
 # Define the default configuration structure.
@@ -21,19 +22,23 @@ default_config = {
     },
 
     'run_time' : {
+        'allow_nsfw': False,
         'default_entries' : 5,
         'use_user_subs' : True,  
         'limit_sr' : 0,
     },
 
     'output' : {
-        'separate_by_sr': True,
+        'separate_by_sub': True,
         'output_folder' : 'Output/'
     },
 
-    'black_list_sr' : [],
-    'white_list_sr' : [],
-    'additional_sr' : [],
+    'black_list_src' : [],
+    'white_list_src' : [],
+
+    'black_list_sub' : [],
+    'white_list_sub' : [],
+    'additional_sub' : [],
 }
 
 
@@ -42,18 +47,18 @@ def login_to_reddit(credentials):
 
     try:
         # Attempt to login to reddit using the provided credential
-        reddit =  praw.Reddit( client_id=credentials['client_id'], 
-                            client_secret=credentials['client_secret'], 
-                            user_agent=credentials['user_agent'],
-                            username=credentials['username'],
-                            password=credentials['password'])
+        reddit = praw.Reddit(   client_id=credentials['client_id'], 
+                                client_secret=credentials['client_secret'], 
+                                user_agent=credentials['user_agent'],
+                                username=credentials['username'],
+                                password=credentials['password'])
         return reddit
     except:
         return None
                        
 
 def get_subscribed_subreddits(reddit):
-    return list(reddit.user.subreddits(limit=1))          
+    return list(reddit.user.subreddits(limit=5))          
 
 
 def get_top_posts(reddit, subreddit, num_posts):     
@@ -114,25 +119,37 @@ if __name__ == "__main__":
        print("Unable to log into Reddit with the provided Credentials. Please Check the 'redditScraper.yml' config file!")
        exit()
 
-
-    subreddits = get_subscribed_subreddits(r)
-
     post_list = []
 
     # Get all the posts from the subreddits.
-    for subreddit in subreddits:
+    for subreddit in get_subscribed_subreddits(r):
         # Get the top posts of the day.
         posts = get_top_posts(r, subreddit.display_name, config['run_time']['default_entries'])
         for post in posts: 
-            # Create a tuple of URL and Filename for the post. Add to list.
-            post_list.append( (post.url, get_filename_from_post(r, post), subreddit.display_name) )
+            # Create a tuple of URL and Filename and source subreddit for the post. Add to list.
+            post_list.append( (get_filename_from_post(r, post), post.url, subreddit.display_name) )
 
     # Go through each post and download file
     for post in post_list: 
-        filename = post[1]
+        filename = post[0]
         # Now lets download the file
-        req = requests.get(post[0])
-        with open( config['output']['output_folder'] + filename,"wb") as f:
+        req = requests.get(post[1])
+
+        file_path = ''
+
+        # If files are to be saved in separate Sub folders.
+        if config['output']['separate_by_sub']:
+            # Create the file path in sub folder. path = "'Base path' / 'configured output folder' / 'subreddit name' /"
+            file_path = f'{os.getcwd()}/{config["output"]["output_folder"]}/{post[2]}/'
+        else:
+            # Create the file path in base configured path. path = "'Base path' / 'configured output folder' /"
+            file_path = f'{os.getcwd()}/{config["output"]["output_folder"]}/'
+
+        # Path does not exist, so lets create it.
+        if not path.exists(file_path):
+            os.mkdir(file_path)
+            
+        with open( file_path + filename, "wb" ) as f:
             f.write(req.content)
             
 
