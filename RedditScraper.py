@@ -111,6 +111,12 @@ if __name__ == "__main__":
         print("Generated Default Configuration File, Please fill in at least Credentials")
         exit()
 
+
+    # Get the base path to save the files to. If it does not exist, create it.
+    base_path = f'{os.getcwd()}/{config["output"]["output_folder"]}'
+    if not path.exists(base_path):
+        os.mkdir(base_path)
+
     # Attempt to login into Reddit with the provided credentials.
     r = login_to_reddit(config['credentials'])
 
@@ -140,10 +146,10 @@ if __name__ == "__main__":
         # If files are to be saved in separate Sub folders.
         if config['output']['separate_by_sub']:
             # Create the file path in sub folder. path = "'Base path' / 'configured output folder' / 'subreddit name' /"
-            file_path = f'{os.getcwd()}/{config["output"]["output_folder"]}/{post[2]}/'
+            file_path = f'{base_path}/{post[2]}/'
         else:
             # Create the file path in base configured path. path = "'Base path' / 'configured output folder' /"
-            file_path = f'{os.getcwd()}/{config["output"]["output_folder"]}/'
+            file_path = f'{base_path}/'
 
         # Path does not exist, so lets create it.
         if not path.exists(file_path):
