@@ -1,2 +1,5 @@
 .vscode
 Output
+*.old
+*.yml
+*yaml
