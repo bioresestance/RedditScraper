@@ -7,6 +7,7 @@ import sys
 import pprint  
 import yaml  
 import io
+import concurrent.futures
 import os  
 from os import path 
 
@@ -57,12 +58,17 @@ def login_to_reddit(credentials):
         return None
                        
 
-def get_subscribed_subreddits(reddit):
-    return list(reddit.user.subreddits(limit=5))          
+def get_subscribed_subreddits(reddit, num: int):
+    if num == 0:
+        return list(reddit.user.subreddits())
+    else:
+        return list(reddit.user.subreddits(limit=num))
+
+              
 
 
 def get_top_posts(reddit, subreddit, num_posts):     
-    return reddit.subreddit(subreddit).hot(limit=num_posts)   
+    return reddit.subreddit(subreddit).hot(limit=None)   
 
 
 def get_filename_from_post(reddit, post):
@@ -127,13 +133,24 @@ if __name__ == "__main__":
 
     post_list = []
 
+    found = 0
+
     # Get all the posts from the subreddits.
-    for subreddit in get_subscribed_subreddits(r):
+    for subreddit in get_subscribed_subreddits(r, config['run_time']['limit_sr']):
         # Get the top posts of the day.
         posts = get_top_posts(r, subreddit.display_name, config['run_time']['default_entries'])
+        found = 0
+
         for post in posts: 
-            # Create a tuple of URL and Filename and source subreddit for the post. Add to list.
-            post_list.append( (get_filename_from_post(r, post), post.url, subreddit.display_name) )
+            # Filter post
+            if not post.stickied and post.over_18 == config['run_time']['allow_nsfw']and post.url.endswith(('jpg', 'jpeg', 'png')):
+                # Create a tuple of URL and Filename and source subreddit for the post. Add to list.
+                post_list.append( (get_filename_from_post(r, post), post.url, subreddit.display_name) )
+                found = found + 1
+
+            # Once we have found enough valid posts, exit loop
+            if found >= config['run_time']['default_entries']:
+                break;
 
     # Go through each post and download file
     for post in post_list: 
