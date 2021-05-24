@@ -27,7 +27,7 @@ class rsConfig:
         'run_time' : {   
                     
             'use_user_subs' : True, # Use logged-in user for sub list.
-            'limit_sr' : 0,         # Limit number of subreddites to grab, 0 is unlimited.
+            'limit_sr' : 10,         # Limit number of subreddites to grab, 0 is unlimited.
             'default_entries' : 5,  # Default number of files to grab if not specified, per subreddit
             'max_attempts' : 50,    # Used to limit number of entries looked at. 
                                     # Usefull if sub only has .gif, and is unable to grab enough entries.  
@@ -44,6 +44,7 @@ class rsConfig:
         # Configs for where and how to store downloaded data.
         'output' : {
             'separate_by_sub': True,
+            'separate_by_date': True,
             'output_folder' : 'Output/',
             'max_total_size': '1Gb',    # Limit total file download. Won't download more then this size, in total.
             'trim_files' : True,        # Trim files, by oldest, once max size reached.
@@ -51,7 +52,7 @@ class rsConfig:
 
         # Configs to filter entries to download and sources.
         'filters' : {
-            'allow_nsfw' : False,   # Is NFSW content allowed to be downloaded?
+            'allow_nsfw' : True,   # Is NFSW content allowed to be downloaded?
             'min_score' : 0,        # Minimum required reddit score. Posts below will be ignored.
 
             # Black and White List for allowed sources.

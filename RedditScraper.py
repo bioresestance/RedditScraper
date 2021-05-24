@@ -7,6 +7,7 @@ import re
 import sys
 import concurrent.futures
 import os  
+from urllib.parse import urlparse
 
 # Local files
 from rsConfig import rsConfig
@@ -17,15 +18,15 @@ def login_to_reddit(credentials: dict):
 
     try:
         # Attempt to login to reddit using the provided credential
-        reddit = praw.Reddit(   client_id=credentials['client_id'], 
+        return praw.Reddit(     client_id=credentials['client_id'], 
                                 client_secret=credentials['client_secret'], 
                                 user_agent=credentials['user_agent'],
                                 username=credentials['username'],
                                 password=credentials['password'])
-        return reddit
     except:
         return None
                        
+
 
 def get_subscribed_subreddits(reddit, num: int):
     if num == 0:
@@ -33,32 +34,8 @@ def get_subscribed_subreddits(reddit, num: int):
     else:
         return list(reddit.user.subreddits(limit=num))
 
-              
 
-
-def get_top_posts(reddit: praw.Reddit, subreddit: str):     
-    return reddit.subreddit(subreddit).hot(limit=None)   
-
-
-def get_filename_from_post(reddit, post):
-
-    # If the post is hosted on reddit.
-    if post.is_self == True:
-        file_name = post.url.split("/")[-2] + ".jpg"
-        print(file_name)   
-        return file_name    
-    else:
-        url = (post.url)
-        file_name = url.split("/")
-        if len(file_name) == 0:
-            file_name = re.findall("/(.*?)", url)
-        file_name = file_name[-1]
-        if "." not in file_name:
-            file_name += ".jpg"
-        return file_name
-
-
-def download_files(postList, basePath, splitBySub):
+def download_files(postList, basePath, splitBySub, splitByDate):
     
     for post in post_list: 
         filename = post[0]
@@ -107,40 +84,39 @@ if __name__ == "__main__":
 
     # Error Logging in, so bail
     if r == None:
-       print("Unable to log into Reddit with the provided Credentials. Please Check the 'redditScraper.yml' config file!")
+       print("Unable to log into Reddit with the provided Credentials. Please Check the 'rsConfig.yml' config file!")
        exit()
 
     post_list = []
 
-    found = 0
-    curr_post = 0
-
-    filteredFileTypes = tuple(config.filters['white_list_file'])
 
     # Get all the posts from the subreddits.
     for subreddit in get_subscribed_subreddits(r, config.runtime['limit_sr']):
+
         # Get the top posts of the day.
-        posts = get_top_posts(r, subreddit.display_name)
+        posts = subreddit.hot(limit=None)   
         found = 0
         curr_post = 0
+
 
         for post in posts: 
             curr_post = curr_post + 1
             # Filter post
             if  not post.stickied \
                 and post.over_18 == config.filters['allow_nsfw'] \
-                and post.url.endswith(filteredFileTypes):
+                and post.url.endswith(tuple(config.filters['white_list_file'])):
 
                 # Create a tuple of URL and Filename and source subreddit for the post. Add to list.
-                post_list.append( (get_filename_from_post(r, post), post.url, subreddit.display_name) )
+                post_list.append( (os.path.basename(urlparse(post.url).path), post.url, subreddit.display_name) )
                 found = found + 1
 
             # Once we have found enough valid posts or we reached max searches, exit loop
             if found >= config.runtime['default_entries'] or curr_post >= config.runtime['max_attempts'] :
-                break;
+                print(f'Found {found} files from {subreddit.display_name}')
+                break
 
     # Go through each post and download file
-    download_files(post_list, base_path, config.output['separate_by_sub'])
+    download_files(post_list, base_path, config.output['separate_by_sub'], config.output['separate_by_date'])
     
             
 
