@@ -1,50 +1,19 @@
 #!/usr/bin/python
 
+# Libraries
 import praw
 import requests
 import re
 import sys
-import pprint  
-import yaml  
-import io
 import concurrent.futures
 import os  
-from os import path 
 
-# Define the default configuration structure.
-default_config = {
-
-    'credentials' : {
-        'client_id' : '',
-        'client_secret' : '',
-        'user_agent' : '',
-        'username' : '',
-        'password' : ''
-    },
-
-    'run_time' : {
-        'allow_nsfw': False,
-        'default_entries' : 5,
-        'use_user_subs' : True,  
-        'limit_sr' : 0,
-    },
-
-    'output' : {
-        'separate_by_sub': True,
-        'output_folder' : 'Output/'
-    },
-
-    'black_list_src' : [],
-    'white_list_src' : [],
-
-    'black_list_sub' : [],
-    'white_list_sub' : [],
-    'additional_sub' : [],
-}
+# Local files
+from rsConfig import rsConfig
 
 
 
-def login_to_reddit(credentials):
+def login_to_reddit(credentials: dict):
 
     try:
         # Attempt to login to reddit using the provided credential
@@ -67,7 +36,7 @@ def get_subscribed_subreddits(reddit, num: int):
               
 
 
-def get_top_posts(reddit, subreddit, num_posts):     
+def get_top_posts(reddit: praw.Reddit, subreddit: str):     
     return reddit.subreddit(subreddit).hot(limit=None)   
 
 
@@ -86,23 +55,33 @@ def get_filename_from_post(reddit, post):
         file_name = file_name[-1]
         if "." not in file_name:
             file_name += ".jpg"
-        print(file_name)
         return file_name
 
 
-def load_config():
+def download_files(postList, basePath, splitBySub):
+    
+    for post in post_list: 
+        filename = post[0]
+        # Now lets download the file
+        req = requests.get(post[1])
 
-    # Check if the config does not exist.
-    if path.exists('redditScraper.yml') != True:
-        # Use the default config object to create the file.
-        with io.open('redditScraper.yml', 'w', encoding='utf8') as outfile:
-            yaml.dump(default_config, outfile, default_flow_style=False, allow_unicode=True)
-        return default_config
+        file_path = ''
 
-    else:
-        # File exists, so load it in.
-        with io.open('redditScraper.yml', 'r') as input:
-            return yaml.safe_load(input)
+        # If files are to be saved in separate Sub folders.
+        if splitBySub:
+            # Create the file path in sub folder. path = "'Base path' / 'configured output folder' / 'subreddit name' /"
+            file_path = f'{base_path}/{post[2]}/'
+        else:
+            # Create the file path in base configured path. path = "'Base path' / 'configured output folder' /"
+            file_path = f'{base_path}/'
+
+        # Path does not exist, so lets create it.
+        if not os.path.exists(file_path):
+            os.mkdir(file_path)
+            
+        with open( file_path + filename, "wb" ) as f:
+            f.write(req.content)
+
         
 #####################################################################################################################################################
 
@@ -110,21 +89,21 @@ def load_config():
 if __name__ == "__main__":
 
     # First try and load in the configuration file.
-    config = load_config()
+    config = rsConfig()
 
-    # Can't do much with default config, so bail.
-    if config == default_config:
+    # If no config could be parsed, then bail.
+    if config.currentConfig == None:
         print("Generated Default Configuration File, Please fill in at least Credentials")
         exit()
 
 
     # Get the base path to save the files to. If it does not exist, create it.
-    base_path = f'{os.getcwd()}/{config["output"]["output_folder"]}'
-    if not path.exists(base_path):
+    base_path = f'{os.getcwd()}/{config.output["output_folder"]}'
+    if not os.path.exists(base_path):
         os.mkdir(base_path)
 
     # Attempt to login into Reddit with the provided credentials.
-    r = login_to_reddit(config['credentials'])
+    r = login_to_reddit(config.credentials)
 
     # Error Logging in, so bail
     if r == None:
@@ -134,46 +113,35 @@ if __name__ == "__main__":
     post_list = []
 
     found = 0
+    curr_post = 0
+
+    filteredFileTypes = tuple(config.filters['white_list_file'])
 
     # Get all the posts from the subreddits.
-    for subreddit in get_subscribed_subreddits(r, config['run_time']['limit_sr']):
+    for subreddit in get_subscribed_subreddits(r, config.runtime['limit_sr']):
         # Get the top posts of the day.
-        posts = get_top_posts(r, subreddit.display_name, config['run_time']['default_entries'])
+        posts = get_top_posts(r, subreddit.display_name)
         found = 0
+        curr_post = 0
 
         for post in posts: 
+            curr_post = curr_post + 1
             # Filter post
-            if not post.stickied and post.over_18 == config['run_time']['allow_nsfw']and post.url.endswith(('jpg', 'jpeg', 'png')):
+            if  not post.stickied \
+                and post.over_18 == config.filters['allow_nsfw'] \
+                and post.url.endswith(filteredFileTypes):
+
                 # Create a tuple of URL and Filename and source subreddit for the post. Add to list.
                 post_list.append( (get_filename_from_post(r, post), post.url, subreddit.display_name) )
                 found = found + 1
 
-            # Once we have found enough valid posts, exit loop
-            if found >= config['run_time']['default_entries']:
+            # Once we have found enough valid posts or we reached max searches, exit loop
+            if found >= config.runtime['default_entries'] or curr_post >= config.runtime['max_attempts'] :
                 break;
 
     # Go through each post and download file
-    for post in post_list: 
-        filename = post[0]
-        # Now lets download the file
-        req = requests.get(post[1])
-
-        file_path = ''
-
-        # If files are to be saved in separate Sub folders.
-        if config['output']['separate_by_sub']:
-            # Create the file path in sub folder. path = "'Base path' / 'configured output folder' / 'subreddit name' /"
-            file_path = f'{base_path}/{post[2]}/'
-        else:
-            # Create the file path in base configured path. path = "'Base path' / 'configured output folder' /"
-            file_path = f'{base_path}/'
-
-        # Path does not exist, so lets create it.
-        if not path.exists(file_path):
-            os.mkdir(file_path)
-            
-        with open( file_path + filename, "wb" ) as f:
-            f.write(req.content)
+    download_files(post_list, base_path, config.output['separate_by_sub'])
+    
             
 
         
