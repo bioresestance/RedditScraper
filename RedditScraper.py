@@ -28,11 +28,38 @@ def login_to_reddit(credentials: dict):
                        
 
 
-def get_subscribed_subreddits(reddit, num: int):
+def get_subscribed_subreddits(user, num: int):
     if num == 0:
-        return list(reddit.user.subreddits())
+        return list(user.subreddits())
     else:
-        return list(reddit.user.subreddits(limit=num))
+        return list(user.subreddits(limit=num))
+
+
+
+def filter_and_get_posts(posts, filters):
+
+    found = 0
+    curr_post = 0
+    post_list = []
+
+    for post in posts: 
+        curr_post = curr_post + 1
+        # Filter post
+        if  not post.stickied \
+            and post.over_18 == config.filters['allow_nsfw'] \
+            and post.url.endswith(tuple(config.filters['white_list_file'])):
+
+            # Create a tuple of URL and Filename and source subreddit for the post. Add to list.
+            post_list.append( (os.path.basename(urlparse(post.url).path), post.url, subreddit.display_name) )
+            found = found + 1
+
+        # Once we have found enough valid posts or we reached max searches, exit loop
+        if found >= config.runtime['default_entries'] or curr_post >= config.runtime['max_attempts'] :
+            print(f'Found {found} files from {subreddit.display_name}')
+            break
+
+    return post_list
+
 
 
 def download_files(postList, basePath, splitBySub, splitByDate):
@@ -89,35 +116,10 @@ if __name__ == "__main__":
 
     post_list = []
 
-
     # Get all the posts from the subreddits.
-    for subreddit in get_subscribed_subreddits(r, config.runtime['limit_sr']):
-
-        # Get the top posts of the day.
-        posts = subreddit.hot(limit=None)   
-        found = 0
-        curr_post = 0
-
-
-        for post in posts: 
-            curr_post = curr_post + 1
-            # Filter post
-            if  not post.stickied \
-                and post.over_18 == config.filters['allow_nsfw'] \
-                and post.url.endswith(tuple(config.filters['white_list_file'])):
-
-                # Create a tuple of URL and Filename and source subreddit for the post. Add to list.
-                post_list.append( (os.path.basename(urlparse(post.url).path), post.url, subreddit.display_name) )
-                found = found + 1
-
-            # Once we have found enough valid posts or we reached max searches, exit loop
-            if found >= config.runtime['default_entries'] or curr_post >= config.runtime['max_attempts'] :
-                print(f'Found {found} files from {subreddit.display_name}')
-                break
+    for subreddit in get_subscribed_subreddits(r.user, config.runtime['limit_sr']):
+        # Get the top posts of the day, and filter them based on config
+        post_list = filter_and_get_posts(subreddit.hot(limit=None) , config.filters)      
 
     # Go through each post and download file
     download_files(post_list, base_path, config.output['separate_by_sub'], config.output['separate_by_date'])
-    
-            
-
-        
