@@ -9,7 +9,7 @@ class rsConfig:
     _rsConfigDefaultFile = "rsConfig.yml"
 
 
-    # Define the default configuration structure.
+    # Defines the default configuration structure.
     _default_config = {
 
         # Reddit Login credentials
