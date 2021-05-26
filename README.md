@@ -38,4 +38,4 @@ Reddit Scraper is a python script that goes to Reddit and grabs, filters and dow
 - [ ] Add support to download either Reddit of other site albums. Currently only supports single file per post download.
 - [ ] Add more then one download location. This will allow storing files in separate folders based on some filter.
 - [ ] Add file size and file purging.
-- [ ] Add periodic retrieval of files based on settings.
+- [ ] Add unit tests
