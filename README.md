@@ -1,14 +1,24 @@
 # RedditScraper
 
 ## Overview
-Reddit Scraper is a python script that goes to Reddit and grabs, filters and downloads desired content to the PC or server running it.
+Reddit Scraper is a python script that goes to Reddit and grabs, filters and downloads desired content to the PC or server running it. Please note: This project is just a Python learning exercise for me, so I give no guarantees for its use or that it won't accidentally delete your C drive. You have been warned!
 
 ## Features
 
-* Automatically download as many, or as little files from your favorite subreddits
+* Automatically download as many, or as little files from your favorite subreddits.
+  * Blacklist or white list subreddits.
+  * Use the logged in user to provide subreddit list to grab from.
+  * Add a pre-defined list of subreddits to grab from.
 * Filter out all unwanted content so you only download the files you really want.
+  * Filter out NSFW content.
+  * Filter by subreddit, including hot, rising or new
+  * Filter by Reddit User score.
+  * Filter by file type.
 * Set script to run periodically, so you always have the latest reddit files.
 * Store files based on subreddit or date, so you always know where and when the files came from.
+* Limit the amount of downloaded content on the PC running the script to prevent running out of HDD/SDD space.
+  * Set a hard limit for total disk usage of all files.
+  * Allow script to automatically purge old files to free room for new files.
 
 
 ## How to Use
@@ -27,3 +37,5 @@ Reddit Scraper is a python script that goes to Reddit and grabs, filters and dow
 - [ ] Add a log file to dump all log information. Currently only writes to the console.
 - [ ] Add support to download either Reddit of other site albums. Currently only supports single file per post download.
 - [ ] Add more then one download location. This will allow storing files in separate folders based on some filter.
+- [ ] Add file size and file purging.
+- [ ] Add periodic retrieval of files based on settings.
