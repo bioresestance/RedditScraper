@@ -80,7 +80,7 @@ class rsScraper:
         file_path = ''
 
         # If files are to be saved in separate Sub folders.
-        if config.output['separate_by_sub']:
+        if self.config.output['separate_by_sub']:
             # Create the file path in sub folder. path = "'Base path' / 'configured output folder' / 'subreddit name' /"
             file_path = f'{self.base_path}/{post[2]}/'
         else:
