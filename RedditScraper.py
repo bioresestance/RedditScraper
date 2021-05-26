@@ -7,7 +7,9 @@ import sys
 import concurrent.futures
 import os  
 import logging as log
+import datetime
 from urllib.parse import urlparse
+from time import time, sleep
 
 # Local files
 from rsConfig import rsConfig
@@ -95,6 +97,18 @@ class rsScraper:
             f.write(req.content)
 
     
+    def sleep_app(self):
+        # Get amount of time to sleep from config and convert to seconds.
+        date_time = datetime.datetime.strptime(self.config.runtime['time_between_runs'], "%H:%M:%S")
+        seconds = (date_time - datetime.datetime(1900, 1, 1)).total_seconds()
+        print(f"Going to sleep for {seconds} seconds")
+        # Grab current time so we know when we are done.
+        start = time()
+        # Keep sleeping until we reach at least the desired amount of time.
+        while (time() - start < seconds):
+            sleep(seconds - (time() - start))
+
+    
     def run(self):
 
         # Get the base path to save the files to. If it does not exist, create it.
@@ -136,9 +150,12 @@ def main():
         print("Generated Default Configuration File, Please fill in at least Credentials")
         exit()
 
-
+    # Create the scraper object with the loaded config.
     scraper = rsScraper(config)
-    scraper.run()
+
+    while (True):
+        scraper.run()
+        scraper.sleep_app()
    
 
 

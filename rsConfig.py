@@ -32,7 +32,7 @@ class rsConfig:
             'max_attempts' : 50,    # Used to limit number of entries looked at. 
                                     # Usefull if sub only has .gif, and is unable to grab enough entries.  
             
-            'time_between_runs': '12h', #Amount of time between 
+            'time_between_runs': '12:00:00', #Amount of time between 
 
             # Black and White List for allowed Subs
             'black_list_sub' : [],
