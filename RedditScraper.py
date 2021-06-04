@@ -10,10 +10,21 @@ import logging as log
 import datetime
 from urllib.parse import urlparse
 from time import time, sleep
+from dataclasses import dataclass
 
 # Local files
 from rsConfig import rsConfig
 from rsOrganize import rsOrganizer
+
+@dataclass
+class PostData:
+    title : str
+    url : str
+    subreddit : str
+    filename : str
+
+
+
 
 class rsScraper:
 
@@ -56,12 +67,14 @@ class rsScraper:
                 # Filter post
                 if  not post.stickied \
                     and post.over_18 == self.config.filters['allow_nsfw'] \
-                    and post.url.endswith(tuple(self.config.filters['white_list_file'])):
+                    and post.url.endswith(tuple(self.config.filters['white_list_file'])) \
+                    and post.ups >= int(self.config.filters['min_score']):
 
-                    # Create a tuple of URL and Filename and source subreddit for the post. Add to list.
-                    post_list.append( ( os.path.basename(urlparse(post.url).path), 
-                                        post.url, 
-                                        subreddit.display_name) )
+                    post_list.append(PostData(  title = post.title,
+                                                subreddit = post.subreddit.display_name,
+                                                url = post.url,
+                                                # Create filename from post title. Limit size to 50 chars.
+                                                filename = post.title.replace(' ', '_')[:35] + os.path.splitext(post.url)[1]))
                     found += 1
 
                 # Once we have found enough valid posts or we reached max searches, exit loop
@@ -75,19 +88,17 @@ class rsScraper:
 
 
 
-    def download_files(self, post):
+    def download_files(self, post : PostData):
         
-
-        filename = post[0]
         # Now lets download the file
-        req = requests.get(post[1])
+        req = requests.get(post.url)
 
         file_path = ''
 
         # If files are to be saved in separate Sub folders.
         if self.config.output['separate_by_sub']:
             # Create the file path in sub folder. path = "'Base path' / 'configured output folder' / 'subreddit name' /"
-            file_path = f'{self.base_path}/{post[2]}/'
+            file_path = f'{self.base_path}/{post.subreddit}/'
         else:
             # Create the file path in base configured path. path = "'Base path' / 'configured output folder' /"
             file_path = f'{self.base_path}/'
@@ -98,12 +109,10 @@ class rsScraper:
 
 
 
-        with open( file_path + filename, "w+b" ) as f:
+        with open( file_path + post.filename, "wb" ) as f:
             f.write(req.content)
-            self.fileList.append(file_path + filename)
-            # self.organizer = rsOrganizer(f, post)
-            # print("testing")
-            # self.organizer.updateMetaData()
+            self.fileList.append(file_path + post.filename)
+
 
     
     def sleep_app(self):
@@ -133,19 +142,20 @@ class rsScraper:
             print("Unable to log into Reddit with the provided Credentials. Please Check the 'rsConfig.yml' config file!")
             exit()
 
+
         self.post_list = []
 
         # Get all the posts from the subreddits.
         for subreddit in self.get_subscribed_subreddits(self.reddit.user, self.config.runtime['limit_sr']):
             # Get the top posts of the day, and filter them based on config
-            post_list += self.filter_and_get_posts(subreddit.hot(limit=None), subreddit)
+            self.post_list += self.filter_and_get_posts(subreddit.hot(limit=None), subreddit)
 
-        print(f'Downloading {len(post_list)} files')
+        print(f'Downloading {len(self.post_list)} files')
 
 
         # Go through each post and download file. Splitting up the work for multi-threads.
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            pool.map(self.download_files, post_list)
+            pool.map(self.download_files, self.post_list)
         
 #####################################################################################################################################################
 
