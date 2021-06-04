@@ -13,12 +13,13 @@ from time import time, sleep
 
 # Local files
 from rsConfig import rsConfig
-
+from rsOrganize import rsOrganizer
 
 class rsScraper:
 
     def __init__(self, config: rsConfig):
         self.config = config
+        self.fileList = []
 
 
     def login_to_reddit(self):
@@ -58,7 +59,9 @@ class rsScraper:
                     and post.url.endswith(tuple(self.config.filters['white_list_file'])):
 
                     # Create a tuple of URL and Filename and source subreddit for the post. Add to list.
-                    post_list.append( (os.path.basename(urlparse(post.url).path), post.url, subreddit.display_name) )
+                    post_list.append( ( os.path.basename(urlparse(post.url).path), 
+                                        post.url, 
+                                        subreddit.display_name) )
                     found += 1
 
                 # Once we have found enough valid posts or we reached max searches, exit loop
@@ -92,9 +95,15 @@ class rsScraper:
         # Path does not exist, so lets create it.
         if not os.path.exists(file_path):
             os.mkdir(file_path)
-            
-        with open( file_path + filename, "wb" ) as f:
+
+
+
+        with open( file_path + filename, "w+b" ) as f:
             f.write(req.content)
+            self.fileList.append(file_path + filename)
+            # self.organizer = rsOrganizer(f, post)
+            # print("testing")
+            # self.organizer.updateMetaData()
 
     
     def sleep_app(self):
@@ -124,7 +133,7 @@ class rsScraper:
             print("Unable to log into Reddit with the provided Credentials. Please Check the 'rsConfig.yml' config file!")
             exit()
 
-        post_list = []
+        self.post_list = []
 
         # Get all the posts from the subreddits.
         for subreddit in self.get_subscribed_subreddits(self.reddit.user, self.config.runtime['limit_sr']):
@@ -133,10 +142,10 @@ class rsScraper:
 
         print(f'Downloading {len(post_list)} files')
 
+
         # Go through each post and download file. Splitting up the work for multi-threads.
         with concurrent.futures.ThreadPoolExecutor() as pool:
             pool.map(self.download_files, post_list)
-
         
 #####################################################################################################################################################
 
@@ -154,6 +163,7 @@ def main():
     scraper = rsScraper(config)
 
     while (True):
+        # Grab the files for this run
         scraper.run()
         scraper.sleep_app()
    
